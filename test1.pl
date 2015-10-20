@@ -13,14 +13,25 @@ link(POs, (Name1, Name2, Type)) :-
     isLinkSatisfied(Type, S1, E1, S2, E2)
     .
 
-plan(POs, Links) :-
+plan(POs, Links, Duration) :-
     maplist(minDuration, POs),
-    linkAll(POs, Links)
+    linkAll(POs, Links),
+    totalDuration(POs, Duration)
     .
 
 exactDuration(POs, Name, Duration) :-
     member((Name, S, E), POs),
     Duration #=# E - S
+    .
+
+minimalDuration(POs, Name, Duration) :-
+    member((Name, S, E), POs),
+    Duration #=< E - S
+    .
+
+maximalDuration(POs, Name, Duration) :-
+    member((Name, S, E), POs),
+    Duration #>= E - S
     .
 
 minStart([(_, S, _)], S).
@@ -43,19 +54,73 @@ totalDuration(POs, Duration) :-
     Duration #=# E - S
     .
 
-data(POs, Links) :-
+% Simple Example
+example1(POs, Links) :-
     POs = [
-        (a, 1, 2),
+        (a, 1, 3),
+        (b, _, _),
+        (c, 2, 5)
+    ],
+    Links = [
+        (a, b, es),
+        (c, b, es)
+    ],
+    exactDuration(POs, b, 5),
+
+    fd_minimize(plan(POs, Links, Duration), Duration), !,
+    printPOs(POs).
+
+% Cycle Example
+example2(POs, Links) :-
+    POs = [
+        (a, 1, 3),
         (b, _, _)
+    ],
+    Links = [
+        (a, b, ee),
+        (b, a, ss)
+    ],
+
+    fd_minimize(plan(POs, Links, Duration), Duration),
+    printPOs(POs).
+
+% Stretching Example
+example3(POs, Links) :-
+    POs = [
+        (a, 1, 3),
+        (b, _, _),
+        (c, _, _)
+    ],
+    Links = [
+        (a, b, es),
+        (b, c, es)
+    ],
+    exactDuration(POs, c, 5),
+    Duration #>= 20,
+
+    fd_minimize(plan(POs, Links, Duration), Duration),
+    printPOs(POs).
+
+% No Solution Example
+example4(POs, Links) :-
+    POs = [
+        (a, 1, 10),
+        (b, _, 15)
     ],
     Links = [
         (a, b, es)
     ],
-    exactDuration(POs, b, 5)
-    .
+    minimalDuration(POs, b, 7),
+
+    fd_minimize(plan(POs, Links, Duration), Duration),
+    printPOs(POs).
+
 
 solve(POs, Links, Duration) :- data(POs, Links), plan(POs, Links), totalDuration(POs, Duration).
 solveMinDuration(POs, Links, Duration) :- fd_minimize(solve(POs, Links, Duration), Duration).
 
-main :- solve(POs, Links, Duration), print(Duration).
-:- initialization(main).
+printPO((Name, S, E)) :- D #=# E - S, format("~a\t0\t2015-10-~k\t2015-10-~k\t~k\n", [Name, S, E, D]).
+printPOs(POs) :- maplist(printPO, POs).
+
+%main :- solveMinDuration(POs, _, _), maplist(printPO, POs).
+%:- initialization(main).
