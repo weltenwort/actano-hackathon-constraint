@@ -18,10 +18,44 @@ plan(POs, Links) :-
     linkAll(POs, Links)
     .
 
-data(POs, Links) :-
-    member((a, 1, 2), POs),
-    member((b, _, 3), POs),
-    member((a, b, es), Links)
+exactDuration(POs, Name, Duration) :-
+    member((Name, S, E), POs),
+    Duration #=# E - S
     .
 
-main(POs, Links) :- data(POs, Links), plan(POs, Links).
+minStart([(_, S, _)], S).
+minStart([(_, S1, _)|POs], MinStart) :-
+    minStart(POs, S2),
+    MinStart #=# min(S1, S2)
+    .
+
+maxEnd([(_, _, E)], E).
+maxEnd([(_, _, E1)|POs], MaxEnd) :-
+    maxEnd(POs, E2),
+    MaxEnd #=# max(E1, E2)
+    .
+start((_, S, _), S).
+end((_, _, E), E).
+
+totalDuration(POs, Duration) :-
+    minStart(POs, S),
+    maxEnd(POs, E),
+    Duration #=# E - S
+    .
+
+data(POs, Links) :-
+    POs = [
+        (a, 1, 2),
+        (b, _, _)
+    ],
+    Links = [
+        (a, b, es)
+    ],
+    exactDuration(POs, b, 5)
+    .
+
+solve(POs, Links, Duration) :- data(POs, Links), plan(POs, Links), totalDuration(POs, Duration).
+solveMinDuration(POs, Links, Duration) :- fd_minimize(solve(POs, Links, Duration), Duration).
+
+main :- solve(POs, Links, Duration), print(Duration).
+:- initialization(main).
